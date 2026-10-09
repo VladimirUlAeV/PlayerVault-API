@@ -7,7 +7,9 @@ type player struct{
 }
 
 type PlayerStorage interface{
-
+	Get()
+	GetAll()
+	Save()
 }
 
 type MemoryStorage struct{
@@ -20,3 +22,21 @@ func NewMemoryStorage()*MemoryStorage{
 	}
 }
 
+func (m * MemoryStorage)Get(id int)(error, int, string, int){
+	player,ok := m.Players[id]
+	if !ok {}
+
+	return nil, id, player.Nickname, player.Score
+}
+
+func (m *MemoryStorage)Save(id int, nick string, score int){
+	m.Players[id] = player{
+		ID: id,
+		Nickname: nick,
+		Score: score,
+	}
+}
+
+func (m *MemoryStorage)GetAll()map[int]player{
+	return m.Players
+}
