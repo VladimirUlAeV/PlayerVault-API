@@ -1,7 +1,7 @@
 package handler
 
 import (
-	data "PlayerVaultAPI/internal/Data"
+	dataa "PlayerVaultAPI/internal/Data"
 	error_project "PlayerVaultAPI/internal/Error"
 	"context"
 	"encoding/json"
@@ -14,6 +14,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"strconv"
 )
 
 func latencyStop(){
@@ -26,15 +27,24 @@ func latencyStop(){
 	fmt.Print(".100%")
 	fmt.Println("")
 }
+type Handler struct{
+	storage dataa.PlayerStorage
+}
 
-func saveHandler(w http.ResponseWriter, r *http.Request){
+func NewHandler(i dataa.PlayerStorage) *Handler{
+	return &Handler{
+		storage: i,
+	}
+}
+
+func (h *Handler)saveHandler(w http.ResponseWriter, r *http.Request){
 	fmt.Println ("Получен запрос на регестрацию нового игрока")
 	if r.Method != http.MethodPost{
-		error_project.ErrorWriteLog(error_project.ErrorMethod)
+		http.Error(w,error_project.ErrorNetWriteLog(nil, error_project.ErrorMethod),http.StatusBadRequest)
 		return
 	}
 
-	userType := r.Header.Get("Content-type")
+	userType := r.Header.Get("Content-type") //проверка контента
 	if !strings.HasPrefix(userType, "application/json"){
 		http.Error(
 			w,
@@ -44,7 +54,7 @@ func saveHandler(w http.ResponseWriter, r *http.Request){
 	}
 
 	r.Body = http.MaxBytesReader(w, r.Body, 1024)
-	var data data.Player
+	var data dataa.Player
 	unmarsh := json.NewDecoder(r.Body)
 	unmarsh.DisallowUnknownFields() //ошибка при лишних полях
 
@@ -74,23 +84,17 @@ func saveHandler(w http.ResponseWriter, r *http.Request){
 				error_project.ErrorNetWriteLog(err, error_project.ErrorJsonIncorrectRequst),
 				http.StatusBadRequest)
 			}
-		return
 	}
-	if data.Nickname == ""{
+
+	if err := h.storage.Save(data); err != nil{
 		http.Error(
 			w,
-			error_project.ErrorNetWriteLog(nil,error_project.ErrorNicknameEmpty),
-			http.StatusBadRequest)
-		return
-	}
-	if data.Score < 0 {
-		http.Error(
-			w,
-			error_project.ErrorNetWriteLog(nil,error_project.ErrorScoreInput),
+			error_project.ErrorNetWriteLog(nil,err),
 			http.StatusBadRequest)
 		return
 	}
 
+	
 	w.Header().Set("Content-Type","applictaion/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{"status":"success"}`))
@@ -98,7 +102,69 @@ func saveHandler(w http.ResponseWriter, r *http.Request){
 
 }
 
-func StartServer(){
+func (h *Handler)getHandler(w http.ResponseWriter, r *http.Request){
+	fmt.Println("Получен запрос на выдачу данных по айди")
+	if r.Method != http.MethodGet{
+		http.Error(w,error_project.ErrorNetWriteLog(nil, error_project.ErrorMethod),http.StatusBadRequest)
+		return
+	}
+
+	BodyBytes, err := io.ReadAll(r.Body)
+	if err != nil{
+		http.Error(w, error_project.ErrorNetWriteLog(err, error_project.ErrorIOread),http.StatusBadRequest)
+	}
+	defer r.Body.Close()
+
+	rawText := strings.TrimSpace(string(BodyBytes))
+	if rawText == ""{
+		http.Error(w, error_project.ErrorNetWriteLog(nil, error_project.ErrorJsonEmptyBody), http.StatusBadRequest)
+		return
+	}
+
+	IdPlayer, err := strconv.Atoi(rawText)
+	if err != nil{
+		http.Error(w, error_project.ErrorNetWriteLog(err, error_project.ErrorIOread),http.StatusBadRequest)
+		return
+	}
+
+	Playere, err := h.storage.Get(IdPlayer)
+	if err != nil{
+		http.Error(w, error_project.ErrorNetWriteLog(nil, err), http.StatusBadRequest)
+		return
+	}
+
+	//отправка ответа
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(Playere); err != nil{
+		http.Error(w, error_project.ErrorNetWriteLog(nil, err), http.StatusBadRequest)
+		return
+	}
+}
+
+func (h *Handler)getAllHandler(w http.ResponseWriter, r *http.Request){
+	fmt.Println("Получен запрос на выдачу данных всех игроков")
+	if r.Method != http.MethodGet{
+		http.Error(w,error_project.ErrorNetWriteLog(nil, error_project.ErrorMethod),http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	AllPlayer, err := h.storage.GetAll()
+	if err != nil{
+		http.Error(w, error_project.ErrorNetWriteLog(nil, err), http.StatusBadRequest)
+		return
+	}
+	if err := json.NewEncoder(w).Encode(AllPlayer); err != nil{
+		http.Error(w, error_project.ErrorNetWriteLog(nil, err), http.StatusBadRequest)
+		return
+	}
+
+}
+
+func StartServer(h *Handler){
+
 	var mux = http.NewServeMux()
 	var server = &http.Server{
 		Addr:    ":8080",
@@ -106,7 +172,9 @@ func StartServer(){
 	}
 	fmt.Println("Server start on 8080 port, для остановки сервера используйте комбинацию ctrl+c")
 
-	mux.HandleFunc("/NewPlayer", saveHandler)
+	mux.HandleFunc("/NewPlayer", h.saveHandler)
+	mux.HandleFunc("/Player", h.getHandler)
+	mux.HandleFunc("/AllPlayer", h.getAllHandler)
 
 	go func(){
 		if err := server.ListenAndServe(); err != nil{

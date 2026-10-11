@@ -1,6 +1,7 @@
 package main
 
 import (
+	dataa "PlayerVaultAPI/internal/Data"
 	"PlayerVaultAPI/internal/handler"
 	"bufio"
 	"fmt"
@@ -27,6 +28,8 @@ func latencyStart(){
 }
 
 func main(){
+	Storage := dataa.NewMemoryStorage()
+	Handler := handler.NewHandler(Storage)
 	latencyStart()
 	scan := bufio.NewScanner(os.Stdin)
 	for{
@@ -36,11 +39,12 @@ func main(){
 		inputUser := scan.Text()
 		switch inputUser{
 			case "1":
-				handler.StartServer()
-				
+				handler.StartServer(Handler)
 			case "2":
+				fmt.Println(Storage)
 				//Открытие лог файла	
 			case "0":
+				fmt.Println("Выход из CLI")
 				return
 			default:
 				fmt.Println("Команда не найдена")

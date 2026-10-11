@@ -8,17 +8,19 @@ import (
 )
 
 var (
-	ErrorGetUser = errors.New("в /data.get: Блок не отработал")
-	ErrorStartServer = errors.New("в /handler.StartServer: ошибка работы сервера по причине: ")
-	ErrorMethod = errors.New("в /handler.Handler: выбран не верный метод")
-	ErrorJsonSyntax = errors.New("в /handler.Handler: ошибка в синтаксисе запроса:")
-	ErrorJsonTypeDate = errors.New("в /handler.Handler: в запросе есть не правильные данные:")
-	ErrorJsonEmptyBody = errors.New("в /handler.Handler: пустое тело запроса:")
-	ErrorJsonIncorrectRequst = errors.New("в /handler.Handler: Неккоректный запрос:")
+	ErrorGetUser = errors.New("Нету игрока с таким айди")
+	ErrorStartServer = errors.New("ошибка работы сервера по причине: ")
+	ErrorMethod = errors.New("выбран не верный метод")
+	ErrorJsonSyntax = errors.New("ошибка в синтаксисе запроса:")
+	ErrorJsonTypeDate = errors.New("в запросе есть не правильные данные:")
+	ErrorJsonEmptyBody = errors.New("пустое тело запроса:")
+	ErrorJsonIncorrectRequst = errors.New("Неккоректный запрос:")
 	ErrorRequstType = errors.New("Неправильный Content-Type: ")
 	ErrorNicknameEmpty = errors.New(":Пустое имя пользователя")
-	ErrorScoreInput = errors.New("Счет не правильного значения")
-
+	ErrorScoreInput = errors.New("Счет не может быть отрицательным")
+	ErrorIdValid = errors.New("Игрок с таким айди уже есть")
+	ErrorIOread = errors.New("Неудачный формат данных:")
+	ErrorEmptyMap = errors.New("В БД нету игроков")
 )
 
 func DualError(err error, staterr error)error{
